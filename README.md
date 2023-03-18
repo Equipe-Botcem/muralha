@@ -1,0 +1,218 @@
+README
+# Controle de Acesso com ESP32 e Google Sheets
+
+Este projeto usa um ESP32 e um leitor de cartões RFID (MFRC522) para controlar o acesso a um portão. O sistema registra as informações de acesso em uma planilha do Google Sheets e permite gerenciar os cartões RFID autorizados.
+
+## Requisitos
+
+- Placa ESP32
+- Módulo leitor RFID MFRC522
+- LEDs (verde e vermelho)
+- Relé
+- Placa de prototipagem e jumpers
+- Conta no Google com acesso ao Google Sheets e Google Apps Script
+
+## Bibliotecas necessárias
+
+- MFRC522
+- SPI
+- WiFi
+- HTTPClient
+- time
+- Preferences
+
+## Instalação e configuração
+
+1. Clone este repositório ou baixe os arquivos necessários.
+
+2. Abra o projeto no PlatformIO, no Visual Studio Code.
+
+3. Instale as bibliotecas necessárias através do gerenciador de bibliotecas do PlatformIO.
+
+4. Atualize as credenciais de Wi-Fi e o ID do script do Google no arquivo `main.cpp`:
+
+```cpp
+const char *ssid = "SEU_SSID";
+const char *password = "SUA_SENHA";
+String GOOGLE_SCRIPT_ID = "SEU_ID_DO_SCRIPT";
+```
+
+5. Crie uma nova planilha no Google Sheets e um novo script no Google Apps Script. Copie o código do arquivo google_script.gs para o novo script e salve.
+
+6. Publique o script como um aplicativo da Web. Copie o ID do script (parte da URL) e atualize o GOOGLE_SCRIPT_ID no arquivo main.cpp.
+
+7. Faça o upload do código para o ESP32.
+
+8. Conecte os componentes de hardware de acordo com o esquema de conexão.
+
+## Funcionamento
+O sistema verifica se um cartão RFID está presente e lê o cartão. Se o cartão estiver na lista de acesso, o portão será aberto e o evento de acesso será registrado na planilha do Google Sheets. Se o cartão não estiver na lista, o acesso será negado e o evento também será registrado na planilha.
+
+O sistema também pode funcionar no modo offline, caso não consiga se conectar à rede Wi-Fi.
+
+
+## Esquema de conexão
+
+Conecte os componentes de hardware conforme descrito abaixo:
+
+- MFRC522:
+  - SDA (SS) -> GPIO21 (D21) do ESP32
+  - SCK -> GPIO18 (D18) do ESP32
+  - MOSI -> GPIO23 (D23) do ESP32
+  - MISO -> GPIO19 (D19) do ESP32
+  - GND -> GND do ESP32
+  - RST -> GPIO22 (D22) do ESP32
+  - 3.3V -> 3.3V do ESP32
+
+- LEDs:
+  - LED verde: Anodo -> GPIO12 (D12) do ESP32, catodo -> resistor de 220Ω -> GND
+  - LED vermelho: Anodo -> GPIO32 (D32) do ESP32, catodo -> resistor de 220Ω -> GND
+
+- Relé:
+  - VCC -> 5V do ESP32
+  - GND -> GND do ESP32
+  - IN -> GPIO14 (D14) do ESP32
+
+![ligação RFID](https://1.bp.blogspot.com/-JfjMIOeudcE/WnyKYO25aEI/AAAAAAAABeg/ZmqqO1NhaiUeTZbVFvPhb4p89hoPBt9wACLcBGAs/s1600/7.png)
+
+
+
+
+## Detalhes das funções
+
+Aqui estão alguns detalhes sobre as principais funções utilizadas no código do ESP32:
+
+### conectarWiFi()
+
+Esta função tenta conectar o ESP32 à rede Wi-Fi usando as credenciais fornecidas. Se a conexão for bem-sucedida, o endereço IP atribuído será exibido no monitor serial.
+
+### configuraTempo()
+
+Esta função configura o ESP32 para obter a hora atual usando o protocolo NTP e ajusta o fuso horário e a hora de verão conforme necessário.
+
+### obterHoraAtual()
+
+Esta função retorna a hora atual no formato "Dia-da-semana, Mês Dia Ano Hora:Minuto:Segundo".
+
+### enviarDadosPlanilha(String permission, String id)
+
+Esta função envia os dados de acesso (permissão e ID do cartão) para o script do Google Apps Script que, por sua vez, atualiza a planilha do Google Sheets. A função também recupera a lista atualizada de IDs de cartões autorizados.
+
+### acenderLed(int led, int tempo)
+
+Esta função acende um LED (verde ou vermelho) por um determinado período (em milissegundos).
+
+### openGate()
+
+Esta função abre o portão acionando o relé por 1 segundo.
+
+## Personalização
+
+Se necessário, você pode personalizar o projeto ajustando as definições de pinos, modificando as funções ou adicionando novas funcionalidades conforme suas necessidades específicas.
+
+## Script do Google Apps Script
+
+O script do Google Apps Script é responsável por receber os dados enviados pelo ESP32 e atualizar a planilha do Google Sheets. Aqui estão algumas informações sobre as principais funções do script:
+
+### doGet(e)
+
+Esta função é chamada quando o ESP32 faz uma solicitação HTTP GET para o script. Ele recebe dois parâmetros da solicitação: o ID do cartão (idcard) e a permissão de acesso (permission). A função insere uma nova linha na planilha com esses valores, a hora atual e o nome associado ao ID do cartão (se disponível).
+
+### getNomeById(idcard)
+
+Esta função recebe um ID de cartão como entrada e retorna o nome associado a esse ID na planilha de permissões. Se o ID do cartão não for encontrado, a função retorna 'desconhecido'.
+
+### concat_Idcard_permitidos()
+
+Esta função lê a planilha de permissões e cria uma lista de IDs de cartões autorizados (aqueles cuja coluna de permissão contém 'sim').
+
+## Configurando o script do Google Apps Script
+
+1. Crie uma nova planilha no Google Sheets.
+2. No menu "Extensões", selecione "Apps Script" para abrir o editor de script.
+3. Copie o código do script do Google Apps Script fornecido e cole-o no editor.
+4. Salve e implante o script como um aplicativo da web:
+   - No menu "Publicar", selecione "Implantar como aplicativo da web".
+   - Escolha um novo projeto e configure quem tem acesso ao aplicativo.
+   - Clique em "Atualizar" para implantar o aplicativo.
+5. Copie o URL do aplicativo da web fornecido e substitua a variável GOOGLE_SCRIPT_ID no código do ESP32 pelo ID do script (parte do URL entre "/s/" e "/exec").
+6. Configure a planilha de acordo com o código do script (por exemplo, nomeie as folhas e colunas conforme necessário).
+
+
+## Instalação das bibliotecas necessárias
+
+O projeto depende das seguintes bibliotecas para funcionar corretamente:
+
+1. MFRC522
+2. SPI
+3. WiFi
+4. HTTPClient
+5. Time
+6. Preferences
+
+Para instalar essas bibliotecas no PlatformIO, siga estas etapas:
+
+1. Abra o projeto no Visual Studio Code com a extensão PlatformIO instalada.
+2. No painel lateral do PlatformIO, clique na opção "Libraries" (Bibliotecas).
+3. Na barra de pesquisa, digite o nome de cada biblioteca e pressione Enter.
+4. Encontre a biblioteca correta nos resultados da pesquisa e clique no botão "Add to Project" (Adicionar ao projeto).
+5. Selecione o projeto em que deseja adicionar a biblioteca e clique em "Add" (Adicionar).
+6. Repita este processo para todas as bibliotecas necessárias.
+
+## Carregando o código no ESP32 usando PlatformIO
+
+Depois de instalar as bibliotecas necessárias, siga estas etapas para carregar o código no ESP32:
+
+1. Conecte o ESP32 ao computador usando um cabo USB.
+2. No painel lateral do PlatformIO, clique na opção "PIO Home".
+3. Vá para a seção "Project Tasks" (Tarefas do projeto) e expanda as opções do projeto.
+4. Clique em "Upload" (Carregar) na seção "Platform" (Plataforma) para compilar e carregar o código no ESP32.
+5. O PlatformIO compilará e carregará o código no ESP32 automaticamente. Verifique a saída da compilação e upload para garantir que não haja erros.
+
+## Configurando o projeto no Google Sheets e Google Apps Script
+
+Este projeto utiliza uma planilha do Google Sheets e um script do Google Apps Script para armazenar e gerenciar informações de acesso. Siga as etapas abaixo para configurar a planilha e o script:
+
+### Configurando a planilha do Google Sheets
+
+1. Crie uma nova planilha no Google Sheets.
+2. Nomeie a planilha conforme desejado (por exemplo, "Controle de Acesso").
+3. Na planilha, crie as seguintes colunas na primeira linha: "Nome", "ID do Cartão", "Permissão", "Data e Hora", "Status".
+4. Preencha as informações de acesso conforme necessário nas linhas seguintes.
+
+### Configurando o script do Google Apps Script
+
+1. No Google Sheets, vá para "Extensões" > "Apps Script".
+2. Crie um novo script com o nome desejado (por exemplo, "ControleAcesso").
+3. Copie o código do script fornecido anteriormente neste README e cole-o no editor de script do Google Apps Script.
+4. Substitua o `sheet_id` no código com o ID da planilha que você criou anteriormente (você pode encontrar o ID da planilha na URL da planilha).
+5. Salve o script.
+6. Vá para "Publicar" > "Implantar como aplicativo da web".
+7. Escolha a opção "Executar como: Eu" e "Quem tem acesso ao aplicativo: Qualquer pessoa, mesmo anônima".
+8. Clique em "Implantar" e copie a URL do aplicativo da web gerada.
+9. No código do ESP32, substitua o valor de `GOOGLE_SCRIPT_ID` pela parte do ID na URL que você copiou (a parte entre `/s/` e `/exec`).
+
+## Solução de problemas comuns
+
+Caso você enfrente problemas ao utilizar este projeto, aqui estão algumas dicas para solucionar problemas comuns:
+
+### Verifique as conexões de hardware
+
+Certifique-se de que todos os componentes (MFRC522, LEDs e relé) estão conectados corretamente aos pinos do ESP32 conforme definido no código.
+
+### Verifique a conexão Wi-Fi e as credenciais
+
+Certifique-se de que seu ESP32 está ao alcance de um ponto de acesso Wi-Fi e que as credenciais (SSID e senha) no código estão corretas.
+
+### Verifique a URL do Google Apps Script
+
+Certifique-se de que a URL do Google Apps Script no código do ESP32 está correta e que o aplicativo da web está configurado para permitir o acesso anônimo.
+
+## Suporte e contribuição
+
+Se você tiver dúvidas, sugestões ou deseja contribuir com este projeto, sinta-se à vontade para abrir uma issue no GitHub ou enviar um pull request com suas melhorias e correções.
+
+### fontes:
+https://iotdesignpro.com/articles/esp32-data-logging-to-google-sheets-with-google-scripts
+
+https://www.fernandok.com/2018/02/esp32-com-rfid-controle-de-acesso.html
